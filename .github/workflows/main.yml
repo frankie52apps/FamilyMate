@@ -13,121 +13,84 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup JDK 17
+    - name: Setup Node.js  
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Setup Java
       uses: actions/setup-java@v4
       with:
-        java-version: '17'
+        java-version: '11'
         distribution: 'temurin'
         
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
-      
-    - name: Accept Android licenses
-      run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-      
-    - name: Create Android project structure
+        
+    - name: Install Cordova
+      run: npm install -g cordova
+        
+    - name: Create Cordova app
       run: |
-        # Create directories
-        mkdir -p app/src/main/java/com/familymate/app
-        mkdir -p app/src/main/res/values
-        mkdir -p gradle/wrapper
+        cordova create familymate com.familymate.app "Family Mate"
+        cd familymate
         
-        # Create MainActivity.java
-        cat > app/src/main/java/com/familymate/app/MainActivity.java << 'EOF'
-        package com.familymate.app;
-        import android.app.Activity;
-        import android.os.Bundle;
-        import android.webkit.WebView;
-        import android.webkit.WebSettings;
-        import android.webkit.WebViewClient;
-        
-        public class MainActivity extends Activity {
-            @Override
-            protected void onCreate(Bundle savedInstanceState) {
-                super.onCreate(savedInstanceState);
+        # Simple HTML for your app
+        cat > www/index.html << 'EOF'
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Family Mate</title>
+            <style>
+                body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background: #f5f5f5; }
+                .container { max-width: 400px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                h1 { color: #FF6B9D; text-align: center; margin-bottom: 20px; }
+                .feature { margin: 15px 0; padding: 10px; background: #f9f9f9; border-radius: 5px; }
+                .feature strong { color: #4ECDC4; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Family Mate</h1>
+                <p style="text-align: center; color: #666;">Complete family organization app</p>
                 
-                WebView webView = new WebView(this);
-                WebSettings webSettings = webView.getSettings();
-                webSettings.setJavaScriptEnabled(true);
-                webSettings.setDomStorageEnabled(true);
+                <div class="feature">
+                    <strong>👥 Family Management:</strong> Track all family members with photos and roles
+                </div>
                 
-                webView.setWebViewClient(new WebViewClient());
-                webView.loadUrl("https://family-mate-demo.replit.app");
+                <div class="feature">
+                    <strong>📅 Smart Calendar:</strong> Color-coded activities and appointments
+                </div>
                 
-                setContentView(webView);
-            }
-        }
+                <div class="feature">
+                    <strong>📥 Import Appointments:</strong> CSV and ICS calendar file support
+                </div>
+                
+                <div class="feature">
+                    <strong>🍽️ Meal Planning:</strong> Plan breakfast, lunch, and dinner
+                </div>
+                
+                <div class="feature">
+                    <strong>✅ Task Management:</strong> Assign and track family tasks
+                </div>
+                
+                <p style="text-align: center; margin-top: 30px; color: #FF6B9D;"><strong>Perfect for busy families to stay organized!</strong></p>
+            </div>
+        </body>
+        </html>
         EOF
         
-        # Create AndroidManifest.xml
-        cat > app/src/main/AndroidManifest.xml << 'EOF'
-        <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-            package="com.familymate.app">
-            
-            <uses-permission android:name="android.permission.INTERNET" />
-            
-            <application android:label="Family Mate">
-                <activity android:name=".MainActivity"
-                    android:exported="true">
-                    <intent-filter>
-                        <action android:name="android.intent.action.MAIN" />
-                        <category android:name="android.intent.category.LAUNCHER" />
-                    </intent-filter>
-                </activity>
-            </application>
-        </manifest>
-        EOF
-        
-        # Create build files
-        cat > app/build.gradle << 'EOF'
-        apply plugin: 'com.android.application'
-        
-        android {
-            compileSdkVersion 33
-            defaultConfig {
-                applicationId "com.familymate.app"
-                minSdkVersion 21
-                targetSdkVersion 33
-                versionCode 1
-                versionName "1.0"
-            }
-            buildTypes {
-                release {
-                    minifyEnabled false
-                }
-            }
-        }
-        EOF
-        
-        cat > build.gradle << 'EOF'
-        buildscript {
-            repositories {
-                google()
-                mavenCentral()
-            }
-            dependencies {
-                classpath 'com.android.tools.build:gradle:7.4.2'
-            }
-        }
-        allprojects {
-            repositories {
-                google()
-                mavenCentral()
-            }
-        }
-        EOF
-        
-        echo "include ':app'" > settings.gradle
-        
-        # Create gradle wrapper
-        curl -s https://raw.githubusercontent.com/gradle/gradle/v7.6.1/gradlew > gradlew
-        chmod +x gradlew
+        cordova platform add android
         
     - name: Build APK
-      run: ./gradlew assembleRelease
-      
+      run: |
+        cd familymate
+        cordova build android --release
+        
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: family-mate-apk
-        path: app/build/outputs/apk/release/app-release-unsigned.apk
+        path: familymate/platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk
